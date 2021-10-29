@@ -91,6 +91,7 @@ const getStyles = (options) =>
     text-anchor: middle;
     font-family: 'trebuchet ms', verdana, arial, sans-serif;
     font-family: var(--mermaid-font-family);
+    pointer-events: visibleFill;
   }
 
   // .taskText:not([font-size]) {
@@ -258,6 +259,10 @@ const getStyles = (options) =>
     fill: ${options.textColor}    ;
     font-family: 'trebuchet ms', verdana, arial, sans-serif;
     font-family: var(--mermaid-font-family);
+  }
+  .date-range-indicator__line {
+    stroke-width: 1;
+    stroke: ${options.titleColor};
   }
 `;
 

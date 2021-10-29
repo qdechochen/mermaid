@@ -18494,6 +18494,7 @@ var draw = function draw(text, id) {
   _parser_gantt__WEBPACK_IMPORTED_MODULE_2__.parser.yy.clear();
   _parser_gantt__WEBPACK_IMPORTED_MODULE_2__.parser.parse(text);
   (0,d3__WEBPACK_IMPORTED_MODULE_1__.timeFormatDefaultLocale)((0,_locale__WEBPACK_IMPORTED_MODULE_5__["default"])(_parser_gantt__WEBPACK_IMPORTED_MODULE_2__.parser.yy.getAxisLocale()));
+  var formatTime = (0,d3__WEBPACK_IMPORTED_MODULE_1__.timeFormat)(_parser_gantt__WEBPACK_IMPORTED_MODULE_2__.parser.yy.getAxisFormat() || conf.axisFormat || '%Y-%m-%d');
   var elem = document.getElementById(id);
   w = elem.parentElement.offsetWidth;
 
@@ -18510,7 +18511,8 @@ var draw = function draw(text, id) {
   var h = taskArray.length * (conf.barHeight + conf.barGap) + 2 * conf.topPadding; // Set viewBox
 
   elem.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
-  var svg = (0,d3__WEBPACK_IMPORTED_MODULE_1__.select)("[id=\"".concat(id, "\"]")); // Set timescale
+  var svg = (0,d3__WEBPACK_IMPORTED_MODULE_1__.select)("[id=\"".concat(id, "\"]"));
+  var rangeIndicatorGroup = null; // Set timescale
 
   var timeScale = (0,d3__WEBPACK_IMPORTED_MODULE_1__.scaleTime)().domain([(0,d3__WEBPACK_IMPORTED_MODULE_1__.min)(taskArray, function (d) {
     return d.startTime;
@@ -18559,6 +18561,28 @@ var draw = function draw(text, id) {
     drawRects(tasks, gap, topPadding, leftPadding, barHeight, colorScale, pageWidth, pageHeight);
     vertLabels(gap, topPadding, leftPadding, barHeight, colorScale);
     drawToday(leftPadding, topPadding, pageWidth, pageHeight);
+    drawRangeIndicatorGroup(topPadding, leftPadding, pageWidth, pageHeight);
+  }
+
+  function drawRangeIndicatorGroup(topPadding, leftPadding, pageWidth, pageHeight) {
+    rangeIndicatorGroup = svg.append('g');
+    rangeIndicatorGroup.selectAll('g').data([0, 0]).enter().append('line').attr('class', 'date-range-indicator__line').attr('x1', leftPadding - 1).attr('y1', conf.gridLineStartPadding).attr('x2', leftPadding - 1).attr('y2', pageHeight - topPadding);
+    rangeIndicatorGroup.selectAll('g').data([0, 0]).enter().append('text').text('').style('text-anchor', 'middle').attr('fill', '#000').attr('stroke', 'none').attr('font-size', 10).attr('x', leftPadding - 2).attr('y', 0);
+  }
+
+  function setRangeIndicatorPosition(startTime, endTime, top) {
+    if (!startTime) {
+      rangeIndicatorGroup.attr('opacity', 0);
+    } else {
+      rangeIndicatorGroup.attr('opacity', 1).selectAll('line').data([startTime, endTime]).attr('transform', function (d, i) {
+        return 'translate(' + timeScale(d) + ' 0)';
+      });
+      rangeIndicatorGroup.selectAll('text').data([startTime, endTime]).text(function (d) {
+        return d && formatTime(d);
+      }).attr('y', top - 2).attr('transform', function (d, i) {
+        return 'translate(' + timeScale(d) + ' 0)';
+      });
+    }
   }
 
   function drawRects(theArray, theGap, theTopPad, theSidePad, theBarHeight, theColorScale, w) {
@@ -18649,6 +18673,10 @@ var draw = function draw(text, id) {
       taskClass += secNum;
       taskClass += ' ' + classStr;
       return res + taskClass;
+    }).on('mouseover', function (e, d) {
+      setRangeIndicatorPosition(d.startTime, d.endTime, d.order * theGap + theTopPad);
+    }).on('mouseout', function (e, d) {
+      setRangeIndicatorPosition();
     }); // Append task labels
 
     rectangles.append('text').attr('id', function (d) {
@@ -18793,11 +18821,11 @@ var draw = function draw(text, id) {
   }
 
   function makeGrid(theSidePad, theTopPad, w, h) {
-    var bottomXAxis = (0,d3__WEBPACK_IMPORTED_MODULE_1__.axisBottom)(timeScale).tickSize(-h + theTopPad + conf.gridLineStartPadding).tickFormat((0,d3__WEBPACK_IMPORTED_MODULE_1__.timeFormat)(_parser_gantt__WEBPACK_IMPORTED_MODULE_2__.parser.yy.getAxisFormat() || conf.axisFormat || '%Y-%m-%d'));
+    var bottomXAxis = (0,d3__WEBPACK_IMPORTED_MODULE_1__.axisBottom)(timeScale).tickSize(-h + theTopPad + conf.gridLineStartPadding).tickFormat(formatTime);
     svg.append('g').attr('class', 'grid').attr('transform', 'translate(' + theSidePad + ', ' + (h - 50) + ')').call(bottomXAxis).selectAll('text').style('text-anchor', 'middle').attr('fill', '#000').attr('stroke', 'none').attr('font-size', 10).attr('dy', '1em');
 
     if (_ganttDb__WEBPACK_IMPORTED_MODULE_3__["default"].topAxisEnabled() || conf.topAxis) {
-      var topXAxis = (0,d3__WEBPACK_IMPORTED_MODULE_1__.axisTop)(timeScale).tickSize(-h + theTopPad + conf.gridLineStartPadding).tickFormat((0,d3__WEBPACK_IMPORTED_MODULE_1__.timeFormat)(_parser_gantt__WEBPACK_IMPORTED_MODULE_2__.parser.yy.getAxisFormat() || conf.axisFormat || '%Y-%m-%d'));
+      var topXAxis = (0,d3__WEBPACK_IMPORTED_MODULE_1__.axisTop)(timeScale).tickSize(-h + theTopPad + conf.gridLineStartPadding).tickFormat(formatTime);
       svg.append('g').attr('class', 'grid').attr('transform', 'translate(' + theSidePad + ', ' + theTopPad + ')').call(topXAxis).selectAll('text').style('text-anchor', 'middle').attr('fill', '#000').attr('stroke', 'none').attr('font-size', 10); // .attr('dy', '1em');
     }
   }
@@ -19061,7 +19089,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
 var getStyles = function getStyles(options) {
-  return "\n  .mermaid-main-font {\n    font-family: \"trebuchet ms\", verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n  }\n  .exclude-range {\n    fill: ".concat(options.excludeBkgColor, ";\n  }\n\n  .section {\n    stroke: none;\n    opacity: 0.2;\n  }\n\n  .section0 {\n    fill: ").concat(options.sectionBkgColor, ";\n  }\n\n  .section2 {\n    fill: ").concat(options.sectionBkgColor2, ";\n  }\n\n  .section1,\n  .section3 {\n    fill: ").concat(options.altSectionBkgColor, ";\n    opacity: 0.2;\n  }\n\n  .sectionTitle0 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle1 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle2 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle3 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle {\n    text-anchor: start;\n    // font-size: ").concat(options.ganttFontSize, ";\n    // text-height: 14px;\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n\n  }\n\n\n  /* Grid and axis */\n\n  .grid .tick {\n    stroke: ").concat(options.gridColor, ";\n    opacity: 0.8;\n    shape-rendering: crispEdges;\n    text {\n      font-family: ").concat(options.fontFamily, ";\n      fill: ").concat(options.textColor, ";\n    }\n  }\n\n  .grid path {\n    stroke-width: 0;\n  }\n\n\n  /* Today line */\n\n  .today {\n    fill: none;\n    stroke: ").concat(options.todayLineColor, ";\n    stroke-width: 2px;\n  }\n\n\n  /* Task styling */\n\n  /* Default task */\n\n  .task {\n    stroke-width: 2;\n  }\n\n  .taskText {\n    text-anchor: middle;\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n  }\n\n  // .taskText:not([font-size]) {\n  //   font-size: ").concat(options.ganttFontSize, ";\n  // }\n\n  .taskTextOutsideRight {\n    fill: ").concat(options.taskTextDarkColor, ";\n    text-anchor: start;\n    // font-size: ").concat(options.ganttFontSize, ";\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n\n  }\n\n  .taskTextOutsideLeft {\n    fill: ").concat(options.taskTextDarkColor, ";\n    text-anchor: end;\n    // font-size: ").concat(options.ganttFontSize, ";\n  }\n\n  /* Special case clickable */\n  .task.clickable {\n    cursor: pointer;\n  }\n  .taskText.clickable {\n    cursor: pointer;\n    fill: ").concat(options.taskTextClickableColor, " !important;\n    font-weight: bold;\n  }\n\n  .taskTextOutsideLeft.clickable {\n    cursor: pointer;\n    fill: ").concat(options.taskTextClickableColor, " !important;\n    font-weight: bold;\n  }\n\n  .taskTextOutsideRight.clickable {\n    cursor: pointer;\n    fill: ").concat(options.taskTextClickableColor, " !important;\n    font-weight: bold;\n  }\n\n  /* Specific task settings for the sections*/\n\n  .taskText0,\n  .taskText1,\n  .taskText2,\n  .taskText3 {\n    fill: ").concat(options.taskTextColor, ";\n  }\n\n  .task0,\n  .task1,\n  .task2,\n  .task3 {\n    fill: ").concat(options.taskBkgColor, ";\n    stroke: ").concat(options.taskBorderColor, ";\n  }\n\n  .taskTextOutside0,\n  .taskTextOutside2\n  {\n    fill: ").concat(options.taskTextOutsideColor, ";\n  }\n\n  .taskTextOutside1,\n  .taskTextOutside3 {\n    fill: ").concat(options.taskTextOutsideColor, ";\n  }\n\n\n  /* Active task */\n\n  .active0,\n  .active1,\n  .active2,\n  .active3 {\n    fill: ").concat(options.activeTaskBkgColor, ";\n    stroke: ").concat(options.activeTaskBorderColor, ";\n  }\n\n  .activeText0,\n  .activeText1,\n  .activeText2,\n  .activeText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n\n  /* Completed task */\n\n  .done0,\n  .done1,\n  .done2,\n  .done3 {\n    stroke: ").concat(options.doneTaskBorderColor, ";\n    fill: ").concat(options.doneTaskBkgColor, ";\n    stroke-width: 2;\n  }\n\n  .doneText0,\n  .doneText1,\n  .doneText2,\n  .doneText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n\n  /* Tasks on the critical line */\n\n  .crit0,\n  .crit1,\n  .crit2,\n  .crit3 {\n    stroke: ").concat(options.critBorderColor, ";\n    fill: ").concat(options.critBkgColor, ";\n    stroke-width: 2;\n  }\n\n  .activeCrit0,\n  .activeCrit1,\n  .activeCrit2,\n  .activeCrit3 {\n    stroke: ").concat(options.critBorderColor, ";\n    fill: ").concat(options.activeTaskBkgColor, ";\n    stroke-width: 2;\n  }\n\n  .doneCrit0,\n  .doneCrit1,\n  .doneCrit2,\n  .doneCrit3 {\n    stroke: ").concat(options.critBorderColor, ";\n    fill: ").concat(options.doneTaskBkgColor, ";\n    stroke-width: 2;\n    cursor: pointer;\n    shape-rendering: crispEdges;\n  }\n\n  .milestone {\n    transform: rotate(45deg) scale(0.8,0.8);\n  }\n\n  .milestoneText {\n    font-style: italic;\n  }\n  .doneCritText0,\n  .doneCritText1,\n  .doneCritText2,\n  .doneCritText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n  .activeCritText0,\n  .activeCritText1,\n  .activeCritText2,\n  .activeCritText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n  .titleText {\n    text-anchor: middle;\n    font-size: 18px;\n    fill: ").concat(options.textColor, "    ;\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n  }\n");
+  return "\n  .mermaid-main-font {\n    font-family: \"trebuchet ms\", verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n  }\n  .exclude-range {\n    fill: ".concat(options.excludeBkgColor, ";\n  }\n\n  .section {\n    stroke: none;\n    opacity: 0.2;\n  }\n\n  .section0 {\n    fill: ").concat(options.sectionBkgColor, ";\n  }\n\n  .section2 {\n    fill: ").concat(options.sectionBkgColor2, ";\n  }\n\n  .section1,\n  .section3 {\n    fill: ").concat(options.altSectionBkgColor, ";\n    opacity: 0.2;\n  }\n\n  .sectionTitle0 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle1 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle2 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle3 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle {\n    text-anchor: start;\n    // font-size: ").concat(options.ganttFontSize, ";\n    // text-height: 14px;\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n\n  }\n\n\n  /* Grid and axis */\n\n  .grid .tick {\n    stroke: ").concat(options.gridColor, ";\n    opacity: 0.8;\n    shape-rendering: crispEdges;\n    text {\n      font-family: ").concat(options.fontFamily, ";\n      fill: ").concat(options.textColor, ";\n    }\n  }\n\n  .grid path {\n    stroke-width: 0;\n  }\n\n\n  /* Today line */\n\n  .today {\n    fill: none;\n    stroke: ").concat(options.todayLineColor, ";\n    stroke-width: 2px;\n  }\n\n\n  /* Task styling */\n\n  /* Default task */\n\n  .task {\n    stroke-width: 2;\n  }\n\n  .taskText {\n    text-anchor: middle;\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n    pointer-events: visibleFill;\n  }\n\n  // .taskText:not([font-size]) {\n  //   font-size: ").concat(options.ganttFontSize, ";\n  // }\n\n  .taskTextOutsideRight {\n    fill: ").concat(options.taskTextDarkColor, ";\n    text-anchor: start;\n    // font-size: ").concat(options.ganttFontSize, ";\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n\n  }\n\n  .taskTextOutsideLeft {\n    fill: ").concat(options.taskTextDarkColor, ";\n    text-anchor: end;\n    // font-size: ").concat(options.ganttFontSize, ";\n  }\n\n  /* Special case clickable */\n  .task.clickable {\n    cursor: pointer;\n  }\n  .taskText.clickable {\n    cursor: pointer;\n    fill: ").concat(options.taskTextClickableColor, " !important;\n    font-weight: bold;\n  }\n\n  .taskTextOutsideLeft.clickable {\n    cursor: pointer;\n    fill: ").concat(options.taskTextClickableColor, " !important;\n    font-weight: bold;\n  }\n\n  .taskTextOutsideRight.clickable {\n    cursor: pointer;\n    fill: ").concat(options.taskTextClickableColor, " !important;\n    font-weight: bold;\n  }\n\n  /* Specific task settings for the sections*/\n\n  .taskText0,\n  .taskText1,\n  .taskText2,\n  .taskText3 {\n    fill: ").concat(options.taskTextColor, ";\n  }\n\n  .task0,\n  .task1,\n  .task2,\n  .task3 {\n    fill: ").concat(options.taskBkgColor, ";\n    stroke: ").concat(options.taskBorderColor, ";\n  }\n\n  .taskTextOutside0,\n  .taskTextOutside2\n  {\n    fill: ").concat(options.taskTextOutsideColor, ";\n  }\n\n  .taskTextOutside1,\n  .taskTextOutside3 {\n    fill: ").concat(options.taskTextOutsideColor, ";\n  }\n\n\n  /* Active task */\n\n  .active0,\n  .active1,\n  .active2,\n  .active3 {\n    fill: ").concat(options.activeTaskBkgColor, ";\n    stroke: ").concat(options.activeTaskBorderColor, ";\n  }\n\n  .activeText0,\n  .activeText1,\n  .activeText2,\n  .activeText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n\n  /* Completed task */\n\n  .done0,\n  .done1,\n  .done2,\n  .done3 {\n    stroke: ").concat(options.doneTaskBorderColor, ";\n    fill: ").concat(options.doneTaskBkgColor, ";\n    stroke-width: 2;\n  }\n\n  .doneText0,\n  .doneText1,\n  .doneText2,\n  .doneText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n\n  /* Tasks on the critical line */\n\n  .crit0,\n  .crit1,\n  .crit2,\n  .crit3 {\n    stroke: ").concat(options.critBorderColor, ";\n    fill: ").concat(options.critBkgColor, ";\n    stroke-width: 2;\n  }\n\n  .activeCrit0,\n  .activeCrit1,\n  .activeCrit2,\n  .activeCrit3 {\n    stroke: ").concat(options.critBorderColor, ";\n    fill: ").concat(options.activeTaskBkgColor, ";\n    stroke-width: 2;\n  }\n\n  .doneCrit0,\n  .doneCrit1,\n  .doneCrit2,\n  .doneCrit3 {\n    stroke: ").concat(options.critBorderColor, ";\n    fill: ").concat(options.doneTaskBkgColor, ";\n    stroke-width: 2;\n    cursor: pointer;\n    shape-rendering: crispEdges;\n  }\n\n  .milestone {\n    transform: rotate(45deg) scale(0.8,0.8);\n  }\n\n  .milestoneText {\n    font-style: italic;\n  }\n  .doneCritText0,\n  .doneCritText1,\n  .doneCritText2,\n  .doneCritText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n  .activeCritText0,\n  .activeCritText1,\n  .activeCritText2,\n  .activeCritText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n  .titleText {\n    text-anchor: middle;\n    font-size: 18px;\n    fill: ").concat(options.textColor, "    ;\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n  }\n  .date-range-indicator__line {\n    stroke-width: 1;\n    stroke: ").concat(options.titleColor, ";\n  }\n");
 };
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (getStyles);
@@ -25313,8 +25341,7 @@ var init = function init() {
 
     try {
       _mermaidAPI__WEBPACK_IMPORTED_MODULE_0__["default"].render(id, txt, function (svgCode, bindFunctions) {
-        element.innerHTML = svgCode;
-
+        // element.innerHTML = svgCode;
         if (typeof callback !== 'undefined') {
           callback(id);
         }
@@ -25958,13 +25985,13 @@ var render = function render(id, _txt, cb, container) {
     }
   } else {
     _logger__WEBPACK_IMPORTED_MODULE_4__.log.debug('CB = undefined!');
-  }
+  } // const node = select('#d' + id).node();
+  // if (node !== null && typeof node.remove === 'function') {
+  //   select('#d' + id)
+  //     .node()
+  //     .remove();
+  // }
 
-  var node = (0,d3__WEBPACK_IMPORTED_MODULE_0__.select)('#d' + id).node();
-
-  if (node !== null && typeof node.remove === 'function') {
-    (0,d3__WEBPACK_IMPORTED_MODULE_0__.select)('#d' + id).node().remove();
-  }
 
   return svgCode;
 };

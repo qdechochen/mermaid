@@ -33,6 +33,7 @@ export const draw = function (text, id) {
   parser.parse(text);
 
   timeFormatDefaultLocale(getLocale(parser.yy.getAxisLocale()));
+  const formatTime = timeFormat(parser.yy.getAxisFormat() || conf.axisFormat || '%Y-%m-%d');
 
   const elem = document.getElementById(id);
   w = elem.parentElement.offsetWidth;
@@ -53,6 +54,8 @@ export const draw = function (text, id) {
   // Set viewBox
   elem.setAttribute('viewBox', '0 0 ' + w + ' ' + h);
   const svg = select(`[id="${id}"]`);
+
+  let rangeIndicatorGroup = null;
 
   // Set timescale
   const timeScale = scaleTime()
@@ -128,6 +131,60 @@ export const draw = function (text, id) {
     drawRects(tasks, gap, topPadding, leftPadding, barHeight, colorScale, pageWidth, pageHeight);
     vertLabels(gap, topPadding, leftPadding, barHeight, colorScale);
     drawToday(leftPadding, topPadding, pageWidth, pageHeight);
+    drawRangeIndicatorGroup(topPadding, leftPadding, pageWidth, pageHeight);
+  }
+
+  function drawRangeIndicatorGroup(topPadding, leftPadding, pageWidth, pageHeight) {
+    rangeIndicatorGroup = svg.append('g');
+
+    rangeIndicatorGroup
+      .selectAll('g')
+      .data([0, 0])
+      .enter()
+      .append('line')
+      .attr('class', 'date-range-indicator__line')
+      .attr('x1', leftPadding-1)
+      .attr('y1', conf.gridLineStartPadding)
+      .attr('x2', leftPadding-1)
+      .attr('y2', pageHeight - topPadding);
+
+    rangeIndicatorGroup
+      .selectAll('g')
+      .data([0, 0])
+      .enter()
+      .append('text')
+      .text('')
+      .style('text-anchor', 'middle')
+      .attr('fill', '#000')
+      .attr('stroke', 'none')
+      .attr('font-size', 10)
+      .attr('x', leftPadding-2)
+      .attr('y', 0);
+  }
+
+  function setRangeIndicatorPosition(startTime, endTime, top) {
+    if (!startTime) {
+      rangeIndicatorGroup.attr('opacity', 0);
+    } else {
+      rangeIndicatorGroup
+        .attr('opacity', 1)
+        .selectAll('line')
+        .data([startTime, endTime])
+        .attr('transform', function (d, i) {
+          return 'translate(' + timeScale(d) + ' 0)';
+        });
+
+      rangeIndicatorGroup
+        .selectAll('text')
+        .data([startTime, endTime])
+        .text(function (d) {
+          return d && formatTime(d);
+        })
+        .attr('y', top - 2)
+        .attr('transform', function (d, i) {
+          return 'translate(' + timeScale(d) + ' 0)';
+        });
+    }
   }
 
   function drawRects(theArray, theGap, theTopPad, theSidePad, theBarHeight, theColorScale, w) {
@@ -252,6 +309,12 @@ export const draw = function (text, id) {
         taskClass += ' ' + classStr;
 
         return res + taskClass;
+      })
+      .on('mouseover', function (e, d) {
+        setRangeIndicatorPosition(d.startTime, d.endTime, d.order * theGap + theTopPad);
+      })
+      .on('mouseout', function (e, d) {
+        setRangeIndicatorPosition();
       });
 
     // Append task labels
@@ -422,7 +485,7 @@ export const draw = function (text, id) {
   function makeGrid(theSidePad, theTopPad, w, h) {
     let bottomXAxis = axisBottom(timeScale)
       .tickSize(-h + theTopPad + conf.gridLineStartPadding)
-      .tickFormat(timeFormat(parser.yy.getAxisFormat() || conf.axisFormat || '%Y-%m-%d'));
+      .tickFormat(formatTime);
 
     svg
       .append('g')
@@ -439,7 +502,7 @@ export const draw = function (text, id) {
     if (ganttDb.topAxisEnabled() || conf.topAxis) {
       let topXAxis = axisTop(timeScale)
         .tickSize(-h + theTopPad + conf.gridLineStartPadding)
-        .tickFormat(timeFormat(parser.yy.getAxisFormat() || conf.axisFormat || '%Y-%m-%d'));
+        .tickFormat(formatTime);
 
       svg
         .append('g')

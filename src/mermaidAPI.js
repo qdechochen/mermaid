@@ -484,12 +484,12 @@ const render = function (id, _txt, cb, container) {
     log.debug('CB = undefined!');
   }
 
-  const node = select('#d' + id).node();
-  if (node !== null && typeof node.remove === 'function') {
-    select('#d' + id)
-      .node()
-      .remove();
-  }
+  // const node = select('#d' + id).node();
+  // if (node !== null && typeof node.remove === 'function') {
+  //   select('#d' + id)
+  //     .node()
+  //     .remove();
+  // }
 
   return svgCode;
 };

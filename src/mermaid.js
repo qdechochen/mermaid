@@ -111,7 +111,7 @@ const init = function () {
         id,
         txt,
         (svgCode, bindFunctions) => {
-          element.innerHTML = svgCode;
+          // element.innerHTML = svgCode;
           if (typeof callback !== 'undefined') {
             callback(id);
           }
