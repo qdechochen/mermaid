@@ -143,14 +143,14 @@ export const draw = function (text, id) {
       .enter()
       .append('line')
       .attr('class', 'date-range-indicator__line')
-      .attr('x1', leftPadding-1)
+      .attr('x1', leftPadding - 1)
       .attr('y1', conf.gridLineStartPadding)
-      .attr('x2', leftPadding-1)
+      .attr('x2', leftPadding - 1)
       .attr('y2', pageHeight - topPadding);
 
     rangeIndicatorGroup
       .selectAll('g')
-      .data([0, 0])
+      .data([0, 0, 0])
       .enter()
       .append('text')
       .text('')
@@ -158,11 +158,11 @@ export const draw = function (text, id) {
       .attr('fill', '#000')
       .attr('stroke', 'none')
       .attr('font-size', 10)
-      .attr('x', leftPadding-2)
+      .attr('x', leftPadding - 2)
       .attr('y', 0);
   }
 
-  function setRangeIndicatorPosition(startTime, endTime, top) {
+  function setRangeIndicatorPosition(startTime, endTime, totalDays, top) {
     if (!startTime) {
       rangeIndicatorGroup.attr('opacity', 0);
     } else {
@@ -176,13 +176,17 @@ export const draw = function (text, id) {
 
       rangeIndicatorGroup
         .selectAll('text')
-        .data([startTime, endTime])
+        .data([startTime, endTime, false])
         .text(function (d) {
-          return d && formatTime(d);
+          return d ? formatTime(d) : totalDays;
         })
         .attr('y', top - 2)
-        .attr('transform', function (d, i) {
-          return 'translate(' + timeScale(d) + ' 0)';
+        .attr('transform', function (d) {
+          return (
+            'translate(' +
+            (d ? timeScale(d) : (timeScale(startTime) + timeScale(endTime)) / 2) +
+            ' 0)'
+          );
         });
     }
   }
@@ -311,9 +315,14 @@ export const draw = function (text, id) {
         return res + taskClass;
       })
       .on('mouseover', function (e, d) {
-        setRangeIndicatorPosition(d.startTime, d.endTime, d.order * theGap + theTopPad);
+        setRangeIndicatorPosition(
+          d.startTime,
+          d.renderEndTime || d.endTime,
+          d.totalDays,
+          d.order * theGap + theTopPad
+        );
       })
-      .on('mouseout', function (e, d) {
+      .on('mouseout', function () {
         setRangeIndicatorPosition();
       });
 

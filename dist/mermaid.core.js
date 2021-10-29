@@ -17909,6 +17909,25 @@ var checkTaskDates = function checkTaskDates(task, dateFormat, excludes, include
   var renderEndTime = fixTaskDates(startTime, endTime, dateFormat, excludes, includes);
   task.endTime = endTime.toDate();
   task.renderEndTime = renderEndTime;
+  task.totalDays = getTaskTotalDays(moment_mini__WEBPACK_IMPORTED_MODULE_0___default()(task.startTime, dateFormat, true), moment_mini__WEBPACK_IMPORTED_MODULE_0___default()(task.endTime, dateFormat, true), dateFormat, excludes, includes);
+};
+
+var getTaskTotalDays = function getTaskTotalDays(startTime, endTime, dateFormat, excludes, includes) {
+  var invalid = false;
+  var total = 0;
+
+  while (startTime < endTime) {
+    total++;
+    invalid = isInvalidDate(startTime, dateFormat, excludes, includes);
+
+    if (invalid) {
+      total--;
+    }
+
+    startTime.add(1, 'd');
+  }
+
+  return total;
 };
 
 var fixTaskDates = function fixTaskDates(startTime, endTime, dateFormat, excludes, includes) {
@@ -18567,20 +18586,20 @@ var draw = function draw(text, id) {
   function drawRangeIndicatorGroup(topPadding, leftPadding, pageWidth, pageHeight) {
     rangeIndicatorGroup = svg.append('g');
     rangeIndicatorGroup.selectAll('g').data([0, 0]).enter().append('line').attr('class', 'date-range-indicator__line').attr('x1', leftPadding - 1).attr('y1', conf.gridLineStartPadding).attr('x2', leftPadding - 1).attr('y2', pageHeight - topPadding);
-    rangeIndicatorGroup.selectAll('g').data([0, 0]).enter().append('text').text('').style('text-anchor', 'middle').attr('fill', '#000').attr('stroke', 'none').attr('font-size', 10).attr('x', leftPadding - 2).attr('y', 0);
+    rangeIndicatorGroup.selectAll('g').data([0, 0, 0]).enter().append('text').text('').style('text-anchor', 'middle').attr('fill', '#000').attr('stroke', 'none').attr('font-size', 10).attr('x', leftPadding - 2).attr('y', 0);
   }
 
-  function setRangeIndicatorPosition(startTime, endTime, top) {
+  function setRangeIndicatorPosition(startTime, endTime, totalDays, top) {
     if (!startTime) {
       rangeIndicatorGroup.attr('opacity', 0);
     } else {
       rangeIndicatorGroup.attr('opacity', 1).selectAll('line').data([startTime, endTime]).attr('transform', function (d, i) {
         return 'translate(' + timeScale(d) + ' 0)';
       });
-      rangeIndicatorGroup.selectAll('text').data([startTime, endTime]).text(function (d) {
-        return d && formatTime(d);
-      }).attr('y', top - 2).attr('transform', function (d, i) {
-        return 'translate(' + timeScale(d) + ' 0)';
+      rangeIndicatorGroup.selectAll('text').data([startTime, endTime, false]).text(function (d) {
+        return d ? formatTime(d) : totalDays;
+      }).attr('y', top - 2).attr('transform', function (d) {
+        return 'translate(' + (d ? timeScale(d) : (timeScale(startTime) + timeScale(endTime)) / 2) + ' 0)';
       });
     }
   }
@@ -18674,8 +18693,8 @@ var draw = function draw(text, id) {
       taskClass += ' ' + classStr;
       return res + taskClass;
     }).on('mouseover', function (e, d) {
-      setRangeIndicatorPosition(d.startTime, d.endTime, d.order * theGap + theTopPad);
-    }).on('mouseout', function (e, d) {
+      setRangeIndicatorPosition(d.startTime, d.renderEndTime || d.endTime, d.totalDays, d.order * theGap + theTopPad);
+    }).on('mouseout', function () {
       setRangeIndicatorPosition();
     }); // Append task labels
 

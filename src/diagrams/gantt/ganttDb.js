@@ -162,6 +162,28 @@ const checkTaskDates = function (task, dateFormat, excludes, includes) {
   let renderEndTime = fixTaskDates(startTime, endTime, dateFormat, excludes, includes);
   task.endTime = endTime.toDate();
   task.renderEndTime = renderEndTime;
+
+  task.totalDays = getTaskTotalDays(
+    moment(task.startTime, dateFormat, true),
+    moment(task.endTime, dateFormat, true),
+    dateFormat,
+    excludes,
+    includes
+  );
+};
+
+const getTaskTotalDays = function (startTime, endTime, dateFormat, excludes, includes) {
+  let invalid = false;
+  let total = 0;
+  while (startTime < endTime) {
+    total++;
+    invalid = isInvalidDate(startTime, dateFormat, excludes, includes);
+    if (invalid) {
+      total--;
+    }
+    startTime.add(1, 'd');
+  }
+  return total;
 };
 
 const fixTaskDates = function (startTime, endTime, dateFormat, excludes, includes) {
