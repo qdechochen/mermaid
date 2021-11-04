@@ -18124,10 +18124,14 @@ var parseData = function parseData(prevTaskId, dataStr) {
     ds = dataStr;
   }
 
-  var data = ds.split(',');
+  var data = ds.split(',').map(function (t) {
+    return t.trim();
+  });
   var task = {}; // Get tags like active, done, crit and milestone
 
   getTaskTags(data, task, tags);
+  getTaskResources(data, task);
+  getTaskPercent(data, task);
 
   for (var i = 0; i < data.length; i++) {
     data[i] = data[i].trim();
@@ -18199,6 +18203,8 @@ var addTask = function addTask(descr, data) {
   rawTask.done = taskInfo.done;
   rawTask.crit = taskInfo.crit;
   rawTask.milestone = taskInfo.milestone;
+  rawTask.percent = taskInfo.percent;
+  rawTask.resources = taskInfo.resources;
   rawTask.order = lastOrder;
   lastOrder++;
   var pos = rawTasks.push(rawTask);
@@ -18467,6 +18473,36 @@ function getTaskTags(data, task, tags) {
   }
 }
 
+function getTaskResources(data, task) {
+  var resources = [];
+
+  for (var i = data.length - 1; i >= 0; i--) {
+    if (data[i].startsWith('@')) {
+      resources.unshift(data[i].substr(1));
+      data.splice(i, 1);
+    }
+  }
+
+  if (resources.length > 0) {
+    task.resources = resources;
+  }
+}
+
+function getTaskPercent(data, task) {
+  task.percent = 0;
+
+  for (var i = data.length - 1; i >= 0; i--) {
+    if (data[i].endsWith('%')) {
+      var number = data[i].substr(0, data[i].length - 1);
+      data.splice(i, 1);
+
+      if (!isNaN(number) && !task.percent) {
+        task.percent = Number(number);
+      }
+    }
+  }
+}
+
 /***/ }),
 
 /***/ "./src/diagrams/gantt/ganttRenderer.js":
@@ -18560,6 +18596,14 @@ var draw = function draw(text, id) {
     }
 
     return result;
+  }
+
+  var themeVars = (0,_config__WEBPACK_IMPORTED_MODULE_4__.getConfig)().themeVariables;
+  console.log(themeVars);
+  var tooltipElem = (0,d3__WEBPACK_IMPORTED_MODULE_1__.select)('.mermaidGanttTooltip');
+
+  if ((tooltipElem._groups || tooltipElem)[0][0] === null) {
+    tooltipElem = (0,d3__WEBPACK_IMPORTED_MODULE_1__.select)('body').append('div').attr('class', 'mermaidGanttTooltip').style('opacity', 0).style('position', 'absolute').style('max-width', '200px').style('font-family', themeVars.fontFamily).style('font-size', '12px').style('background', themeVars.tertiaryColor).style('border', '1px solid ' + themeVars.border2).style('border-radius', '2px').style('pointer-events', 'none').style('z-index', 100).style('transform', 'translate(-50%, 16px)').style('padding', '6px 15px');
   } // Sort the task array using the above taskCompare() so that
   // tasks are created based on their order of startTime
 
@@ -18622,8 +18666,8 @@ var draw = function draw(text, id) {
       return 'section section0';
     }); // Draw the rects representing the tasks
 
-    var rectangles = svg.append('g').selectAll('rect').data(theArray).enter();
-    rectangles.append('rect').attr('id', function (d) {
+    var rectangleGroups = svg.append('g').selectAll('g').data(theArray).enter();
+    rectangleGroups.append('rect').attr('id', function (d) {
       return d.id;
     }).attr('rx', 3).attr('ry', 3).attr('x', function (d) {
       if (d.milestone) {
@@ -18693,12 +18737,94 @@ var draw = function draw(text, id) {
       taskClass += ' ' + classStr;
       return res + taskClass;
     }).on('mouseover', function (e, d) {
+      var content = "<div style=\"font-weight: bold\">".concat(d.task, " ").concat(d.percent ? '(' + d.percent + '%)' : '', "</div>");
+
+      if (d.resources) {
+        content += "<div style=\"padding-top: 5px;\">".concat(d.resources.map(function (t) {
+          return '@' + t;
+        }).join(', '), "</div>");
+      }
+
+      tooltipElem.html(content).transition().duration(200).style('opacity', '.9');
+    }).on('mousemove', function (e, d) {
       setRangeIndicatorPosition(d.startTime, d.renderEndTime || d.endTime, d.totalDays, d.order * theGap + theTopPad);
+      tooltipElem.style('left', e.clientX + 'px').style('top', e.clientY + 'px');
     }).on('mouseout', function () {
+      tooltipElem.transition().duration(200).style('opacity', 0);
       setRangeIndicatorPosition();
+    });
+    rectangleGroups.append('rect').attr('id', function (d) {
+      return d.id;
+    }).attr('x', function (d) {
+      if (d.milestone) {
+        return timeScale(d.startTime) + theSidePad + 0.5 * (timeScale(d.endTime) - timeScale(d.startTime)) - 0.5 * theBarHeight;
+      }
+
+      return timeScale(d.startTime) + theSidePad;
+    }).attr('y', function (d, i) {
+      // Ignore the incoming i value and use our order instead
+      i = d.order;
+      return i * theGap + theTopPad;
+    }).attr('width', function (d) {
+      if (d.milestone) {
+        return theBarHeight;
+      }
+
+      return (timeScale(d.renderEndTime || d.endTime) - timeScale(d.startTime)) * (d.percent / 100);
+    }).attr('height', theBarHeight).attr('transform-origin', function (d, i) {
+      // Ignore the incoming i value and use our order instead
+      i = d.order;
+      return (timeScale(d.startTime) + theSidePad + 0.5 * (timeScale(d.endTime) - timeScale(d.startTime))).toString() + 'px ' + (i * theGap + theTopPad + 0.5 * theBarHeight).toString() + 'px';
+    }).attr('class', function (d) {
+      var res = 'task percent';
+      var classStr = '';
+
+      if (d.classes.length > 0) {
+        classStr = d.classes.join(' ');
+      }
+
+      var secNum = 0;
+
+      for (var _i3 = 0; _i3 < categories.length; _i3++) {
+        if (d.type === categories[_i3]) {
+          secNum = _i3 % conf.numberSectionStyles;
+        }
+      }
+
+      var taskClass = '';
+
+      if (d.active) {
+        if (d.crit) {
+          taskClass += ' activeCrit';
+        } else {
+          taskClass = ' active';
+        }
+      } else if (d.done) {
+        if (d.crit) {
+          taskClass = ' doneCrit';
+        } else {
+          taskClass = ' done';
+        }
+      } else {
+        if (d.crit) {
+          taskClass += ' crit';
+        }
+      }
+
+      if (taskClass.length === 0) {
+        taskClass = ' task';
+      }
+
+      if (d.milestone) {
+        taskClass = ' milestone ' + taskClass;
+      }
+
+      taskClass += secNum;
+      taskClass += ' ' + classStr;
+      return res + taskClass;
     }); // Append task labels
 
-    rectangles.append('text').attr('id', function (d) {
+    rectangleGroups.append('text').attr('id', function (d) {
       return d.id + '-text';
     }).text(function (d) {
       return d.task;
@@ -18746,9 +18872,9 @@ var draw = function draw(text, id) {
 
       var secNum = 0;
 
-      for (var _i3 = 0; _i3 < categories.length; _i3++) {
-        if (d.type === categories[_i3]) {
-          secNum = _i3 % conf.numberSectionStyles;
+      for (var _i4 = 0; _i4 < categories.length; _i4++) {
+        if (d.type === categories[_i4]) {
+          secNum = _i4 % conf.numberSectionStyles;
         }
       }
 
@@ -18853,8 +18979,8 @@ var draw = function draw(text, id) {
     var numOccurances = [];
     var prevGap = 0;
 
-    for (var _i4 = 0; _i4 < categories.length; _i4++) {
-      numOccurances[_i4] = [categories[_i4], getCount(categories[_i4], catsUnfiltered)];
+    for (var _i5 = 0; _i5 < categories.length; _i5++) {
+      numOccurances[_i5] = [categories[_i5], getCount(categories[_i5], catsUnfiltered)];
     }
 
     svg.append('g') // without doing this, impossible to put grid lines behind text
@@ -18884,9 +19010,9 @@ var draw = function draw(text, id) {
         return d[1] * theGap / 2 + theTopPad;
       }
     }).attr('font-size', conf.sectionFontSize).attr('font-size', conf.sectionFontSize).attr('class', function (d) {
-      for (var _i5 = 0; _i5 < categories.length; _i5++) {
-        if (d[0] === categories[_i5]) {
-          return 'sectionTitle sectionTitle' + _i5 % conf.numberSectionStyles;
+      for (var _i6 = 0; _i6 < categories.length; _i6++) {
+        if (d[0] === categories[_i6]) {
+          return 'sectionTitle sectionTitle' + _i6 % conf.numberSectionStyles;
         }
       }
 
@@ -18916,12 +19042,12 @@ var draw = function draw(text, id) {
     var hash = {};
     var result = [];
 
-    for (var _i6 = 0, l = arr.length; _i6 < l; ++_i6) {
-      if (!Object.prototype.hasOwnProperty.call(hash, arr[_i6])) {
+    for (var _i7 = 0, l = arr.length; _i7 < l; ++_i7) {
+      if (!Object.prototype.hasOwnProperty.call(hash, arr[_i7])) {
         // eslint-disable-line
         // it works with objects! in FF, at least
-        hash[arr[_i6]] = true;
-        result.push(arr[_i6]);
+        hash[arr[_i7]] = true;
+        result.push(arr[_i7]);
       }
     }
 
@@ -19108,7 +19234,7 @@ __webpack_require__.r(__webpack_exports__);
 /* harmony export */   "default": () => (__WEBPACK_DEFAULT_EXPORT__)
 /* harmony export */ });
 var getStyles = function getStyles(options) {
-  return "\n  .mermaid-main-font {\n    font-family: \"trebuchet ms\", verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n  }\n  .exclude-range {\n    fill: ".concat(options.excludeBkgColor, ";\n  }\n\n  .section {\n    stroke: none;\n    opacity: 0.2;\n  }\n\n  .section0 {\n    fill: ").concat(options.sectionBkgColor, ";\n  }\n\n  .section2 {\n    fill: ").concat(options.sectionBkgColor2, ";\n  }\n\n  .section1,\n  .section3 {\n    fill: ").concat(options.altSectionBkgColor, ";\n    opacity: 0.2;\n  }\n\n  .sectionTitle0 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle1 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle2 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle3 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle {\n    text-anchor: start;\n    // font-size: ").concat(options.ganttFontSize, ";\n    // text-height: 14px;\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n\n  }\n\n\n  /* Grid and axis */\n\n  .grid .tick {\n    stroke: ").concat(options.gridColor, ";\n    opacity: 0.8;\n    shape-rendering: crispEdges;\n    text {\n      font-family: ").concat(options.fontFamily, ";\n      fill: ").concat(options.textColor, ";\n    }\n  }\n\n  .grid path {\n    stroke-width: 0;\n  }\n\n\n  /* Today line */\n\n  .today {\n    fill: none;\n    stroke: ").concat(options.todayLineColor, ";\n    stroke-width: 2px;\n  }\n\n\n  /* Task styling */\n\n  /* Default task */\n\n  .task {\n    stroke-width: 2;\n  }\n\n  .taskText {\n    text-anchor: middle;\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n    pointer-events: visibleFill;\n  }\n\n  // .taskText:not([font-size]) {\n  //   font-size: ").concat(options.ganttFontSize, ";\n  // }\n\n  .taskTextOutsideRight {\n    fill: ").concat(options.taskTextDarkColor, ";\n    text-anchor: start;\n    // font-size: ").concat(options.ganttFontSize, ";\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n\n  }\n\n  .taskTextOutsideLeft {\n    fill: ").concat(options.taskTextDarkColor, ";\n    text-anchor: end;\n    // font-size: ").concat(options.ganttFontSize, ";\n  }\n\n  /* Special case clickable */\n  .task.clickable {\n    cursor: pointer;\n  }\n  .taskText.clickable {\n    cursor: pointer;\n    fill: ").concat(options.taskTextClickableColor, " !important;\n    font-weight: bold;\n  }\n\n  .taskTextOutsideLeft.clickable {\n    cursor: pointer;\n    fill: ").concat(options.taskTextClickableColor, " !important;\n    font-weight: bold;\n  }\n\n  .taskTextOutsideRight.clickable {\n    cursor: pointer;\n    fill: ").concat(options.taskTextClickableColor, " !important;\n    font-weight: bold;\n  }\n\n  /* Specific task settings for the sections*/\n\n  .taskText0,\n  .taskText1,\n  .taskText2,\n  .taskText3 {\n    fill: ").concat(options.taskTextColor, ";\n  }\n\n  .task0,\n  .task1,\n  .task2,\n  .task3 {\n    fill: ").concat(options.taskBkgColor, ";\n    stroke: ").concat(options.taskBorderColor, ";\n  }\n\n  .taskTextOutside0,\n  .taskTextOutside2\n  {\n    fill: ").concat(options.taskTextOutsideColor, ";\n  }\n\n  .taskTextOutside1,\n  .taskTextOutside3 {\n    fill: ").concat(options.taskTextOutsideColor, ";\n  }\n\n\n  /* Active task */\n\n  .active0,\n  .active1,\n  .active2,\n  .active3 {\n    fill: ").concat(options.activeTaskBkgColor, ";\n    stroke: ").concat(options.activeTaskBorderColor, ";\n  }\n\n  .activeText0,\n  .activeText1,\n  .activeText2,\n  .activeText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n\n  /* Completed task */\n\n  .done0,\n  .done1,\n  .done2,\n  .done3 {\n    stroke: ").concat(options.doneTaskBorderColor, ";\n    fill: ").concat(options.doneTaskBkgColor, ";\n    stroke-width: 2;\n  }\n\n  .doneText0,\n  .doneText1,\n  .doneText2,\n  .doneText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n\n  /* Tasks on the critical line */\n\n  .crit0,\n  .crit1,\n  .crit2,\n  .crit3 {\n    stroke: ").concat(options.critBorderColor, ";\n    fill: ").concat(options.critBkgColor, ";\n    stroke-width: 2;\n  }\n\n  .activeCrit0,\n  .activeCrit1,\n  .activeCrit2,\n  .activeCrit3 {\n    stroke: ").concat(options.critBorderColor, ";\n    fill: ").concat(options.activeTaskBkgColor, ";\n    stroke-width: 2;\n  }\n\n  .doneCrit0,\n  .doneCrit1,\n  .doneCrit2,\n  .doneCrit3 {\n    stroke: ").concat(options.critBorderColor, ";\n    fill: ").concat(options.doneTaskBkgColor, ";\n    stroke-width: 2;\n    cursor: pointer;\n    shape-rendering: crispEdges;\n  }\n\n  .milestone {\n    transform: rotate(45deg) scale(0.8,0.8);\n  }\n\n  .milestoneText {\n    font-style: italic;\n  }\n  .doneCritText0,\n  .doneCritText1,\n  .doneCritText2,\n  .doneCritText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n  .activeCritText0,\n  .activeCritText1,\n  .activeCritText2,\n  .activeCritText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n  .titleText {\n    text-anchor: middle;\n    font-size: 18px;\n    fill: ").concat(options.textColor, "    ;\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n  }\n  .date-range-indicator__line {\n    stroke-width: 1;\n    stroke: ").concat(options.titleColor, ";\n  }\n");
+  return "\n  .mermaid-main-font {\n    font-family: \"trebuchet ms\", verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n  }\n  .exclude-range {\n    fill: ".concat(options.excludeBkgColor, ";\n  }\n\n  .section {\n    stroke: none;\n    opacity: 0.2;\n  }\n\n  .section0 {\n    fill: ").concat(options.sectionBkgColor, ";\n  }\n\n  .section2 {\n    fill: ").concat(options.sectionBkgColor2, ";\n  }\n\n  .section1,\n  .section3 {\n    fill: ").concat(options.altSectionBkgColor, ";\n    opacity: 0.2;\n  }\n\n  .sectionTitle0 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle1 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle2 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle3 {\n    fill: ").concat(options.titleColor, ";\n  }\n\n  .sectionTitle {\n    text-anchor: start;\n    // font-size: ").concat(options.ganttFontSize, ";\n    // text-height: 14px;\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n\n  }\n\n\n  /* Grid and axis */\n\n  .grid .tick {\n    stroke: ").concat(options.gridColor, ";\n    opacity: 0.8;\n    shape-rendering: crispEdges;\n    text {\n      font-family: ").concat(options.fontFamily, ";\n      fill: ").concat(options.textColor, ";\n    }\n  }\n\n  .grid path {\n    stroke-width: 0;\n  }\n\n\n  /* Today line */\n\n  .today {\n    fill: none;\n    stroke: ").concat(options.todayLineColor, ";\n    stroke-width: 2px;\n  }\n\n\n  /* Task styling */\n\n  /* Default task */\n\n  .task {\n    stroke-width: 2;\n    opacity: .4;\n  }\n  .task.percent {\n    opacity: 1;\n    pointer-events: none;\n    stroke-width: 0;\n  }\n\n  .taskText {\n    text-anchor: middle;\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n    pointer-events: visibleFill;\n  }\n\n  // .taskText:not([font-size]) {\n  //   font-size: ").concat(options.ganttFontSize, ";\n  // }\n\n  .taskTextOutsideRight {\n    fill: ").concat(options.taskTextDarkColor, ";\n    text-anchor: start;\n    // font-size: ").concat(options.ganttFontSize, ";\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n\n  }\n\n  .taskTextOutsideLeft {\n    fill: ").concat(options.taskTextDarkColor, ";\n    text-anchor: end;\n    // font-size: ").concat(options.ganttFontSize, ";\n  }\n\n  /* Special case clickable */\n  .task.clickable {\n    cursor: pointer;\n  }\n  .taskText.clickable {\n    cursor: pointer;\n    fill: ").concat(options.taskTextClickableColor, " !important;\n    font-weight: bold;\n  }\n\n  .taskTextOutsideLeft.clickable {\n    cursor: pointer;\n    fill: ").concat(options.taskTextClickableColor, " !important;\n    font-weight: bold;\n  }\n\n  .taskTextOutsideRight.clickable {\n    cursor: pointer;\n    fill: ").concat(options.taskTextClickableColor, " !important;\n    font-weight: bold;\n  }\n\n  /* Specific task settings for the sections*/\n\n  .taskText0,\n  .taskText1,\n  .taskText2,\n  .taskText3 {\n    fill: ").concat(options.taskTextColor, ";\n    pointer-events: none;\n  }\n\n  .task0,\n  .task1,\n  .task2,\n  .task3 {\n    fill: ").concat(options.taskBkgColor, ";\n    stroke: ").concat(options.taskBorderColor, ";\n  }\n\n  .taskTextOutside0,\n  .taskTextOutside2\n  {\n    fill: ").concat(options.taskTextOutsideColor, ";\n  }\n\n  .taskTextOutside1,\n  .taskTextOutside3 {\n    fill: ").concat(options.taskTextOutsideColor, ";\n  }\n\n\n  /* Active task */\n\n  .active0,\n  .active1,\n  .active2,\n  .active3 {\n    fill: ").concat(options.activeTaskBkgColor, ";\n    stroke: ").concat(options.activeTaskBorderColor, ";\n  }\n\n  .activeText0,\n  .activeText1,\n  .activeText2,\n  .activeText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n\n  /* Completed task */\n\n  .done0,\n  .done1,\n  .done2,\n  .done3 {\n    stroke: ").concat(options.doneTaskBorderColor, ";\n    fill: ").concat(options.doneTaskBkgColor, ";\n    stroke-width: 2;\n  }\n\n  .doneText0,\n  .doneText1,\n  .doneText2,\n  .doneText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n\n  /* Tasks on the critical line */\n\n  .crit0,\n  .crit1,\n  .crit2,\n  .crit3 {\n    stroke: ").concat(options.critBorderColor, ";\n    fill: ").concat(options.critBkgColor, ";\n    stroke-width: 2;\n  }\n\n  .activeCrit0,\n  .activeCrit1,\n  .activeCrit2,\n  .activeCrit3 {\n    stroke: ").concat(options.critBorderColor, ";\n    fill: ").concat(options.activeTaskBkgColor, ";\n    stroke-width: 2;\n  }\n\n  .doneCrit0,\n  .doneCrit1,\n  .doneCrit2,\n  .doneCrit3 {\n    stroke: ").concat(options.critBorderColor, ";\n    fill: ").concat(options.doneTaskBkgColor, ";\n    stroke-width: 2;\n    cursor: pointer;\n    shape-rendering: crispEdges;\n  }\n\n  .milestone {\n    transform: rotate(45deg) scale(0.8,0.8);\n  }\n\n  .milestoneText {\n    font-style: italic;\n  }\n  .doneCritText0,\n  .doneCritText1,\n  .doneCritText2,\n  .doneCritText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n  .activeCritText0,\n  .activeCritText1,\n  .activeCritText2,\n  .activeCritText3 {\n    fill: ").concat(options.taskTextDarkColor, " !important;\n  }\n\n  .titleText {\n    text-anchor: middle;\n    font-size: 18px;\n    fill: ").concat(options.textColor, "    ;\n    font-family: 'trebuchet ms', verdana, arial, sans-serif;\n    font-family: var(--mermaid-font-family);\n  }\n  .date-range-indicator__line {\n    stroke-width: 1;\n    stroke: ").concat(options.titleColor, ";\n  }\n");
 };
 
 /* harmony default export */ const __WEBPACK_DEFAULT_EXPORT__ = (getStyles);

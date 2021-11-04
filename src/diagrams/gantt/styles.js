@@ -85,6 +85,12 @@ const getStyles = (options) =>
 
   .task {
     stroke-width: 2;
+    opacity: .4;
+  }
+  .task.percent {
+    opacity: 1;
+    pointer-events: none;
+    stroke-width: 0;
   }
 
   .taskText {
@@ -142,6 +148,7 @@ const getStyles = (options) =>
   .taskText2,
   .taskText3 {
     fill: ${options.taskTextColor};
+    pointer-events: none;
   }
 
   .task0,

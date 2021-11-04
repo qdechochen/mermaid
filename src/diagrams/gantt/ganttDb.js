@@ -363,12 +363,14 @@ const parseData = function (prevTaskId, dataStr) {
     ds = dataStr;
   }
 
-  const data = ds.split(',');
+  const data = ds.split(',').map(t => t.trim());
 
   const task = {};
 
   // Get tags like active, done, crit and milestone
   getTaskTags(data, task, tags);
+  getTaskResources(data, task);
+  getTaskPercent(data, task);
 
   for (let i = 0; i < data.length; i++) {
     data[i] = data[i].trim();
@@ -426,6 +428,7 @@ export const addTask = function (descr, data) {
     task: descr,
     classes: [],
   };
+
   const taskInfo = parseData(lastTaskID, data);
   rawTask.raw.startTime = taskInfo.startTime;
   rawTask.raw.endTime = taskInfo.endTime;
@@ -435,6 +438,8 @@ export const addTask = function (descr, data) {
   rawTask.done = taskInfo.done;
   rawTask.crit = taskInfo.crit;
   rawTask.milestone = taskInfo.milestone;
+  rawTask.percent = taskInfo.percent;
+  rawTask.resources = taskInfo.resources;
   rawTask.order = lastOrder;
 
   lastOrder++;
@@ -687,5 +692,29 @@ function getTaskTags(data, task, tags) {
         matchFound = true;
       }
     });
+  }
+}
+function getTaskResources(data, task) {
+  const resources = [];
+  for (let i = data.length - 1; i >= 0; i--) {
+    if (data[i].startsWith('@')) {
+      resources.unshift(data[i].substr(1));
+      data.splice(i, 1);
+    }
+  }
+  if (resources.length > 0) {
+    task.resources = resources;
+  }
+}
+function getTaskPercent(data, task) {
+  task.percent = 0;
+  for (let i = data.length - 1; i >= 0; i--) {
+    if (data[i].endsWith('%')) {
+      const number = data[i].substr(0, data[i].length - 1);
+      data.splice(i, 1);
+      if (!isNaN(number) && !task.percent) {
+        task.percent = Number(number);
+      }
+    }
   }
 }
