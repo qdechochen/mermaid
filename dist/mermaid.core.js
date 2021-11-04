@@ -18124,10 +18124,14 @@ var parseData = function parseData(prevTaskId, dataStr) {
     ds = dataStr;
   }
 
-  var data = ds.split(',');
+  var data = ds.split(',').map(function (t) {
+    return t.trim();
+  });
   var task = {}; // Get tags like active, done, crit and milestone
 
   getTaskTags(data, task, tags);
+  getTaskResources(data, task);
+  getTaskPercent(data, task);
 
   for (var i = 0; i < data.length; i++) {
     data[i] = data[i].trim();
@@ -18199,6 +18203,8 @@ var addTask = function addTask(descr, data) {
   rawTask.done = taskInfo.done;
   rawTask.crit = taskInfo.crit;
   rawTask.milestone = taskInfo.milestone;
+  rawTask.percent = taskInfo.percent;
+  rawTask.resources = taskInfo.resources;
   rawTask.order = lastOrder;
   lastOrder++;
   var pos = rawTasks.push(rawTask);
@@ -18464,6 +18470,36 @@ function getTaskTags(data, task, tags) {
         matchFound = true;
       }
     });
+  }
+}
+
+function getTaskResources(data, task) {
+  var resources = [];
+
+  for (var i = data.length - 1; i >= 0; i--) {
+    if (data[i].startsWith('@')) {
+      resources.unshift(data[i].substr(1));
+      data.splice(i, 1);
+    }
+  }
+
+  if (resources.length > 0) {
+    task.resources = resources;
+  }
+}
+
+function getTaskPercent(data, task) {
+  task.percent = 0;
+
+  for (var i = data.length - 1; i >= 0; i--) {
+    if (data[i].endsWith('%')) {
+      var number = data[i].substr(0, data[i].length - 1);
+      data.splice(i, 1);
+
+      if (!isNaN(number) && !task.percent) {
+        task.percent = Number(number);
+      }
+    }
   }
 }
 
