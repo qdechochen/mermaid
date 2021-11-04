@@ -12070,7 +12070,7 @@ var config = {
   /**
    * | Parameter | Description | Type | Required | Values |
    * | --- | --- | --- | --- | --- |
-   * | fontFamily | specifies the font to be used in the rendered diagrams| string | Required | Any Posiable CSS FontFamily |
+   * | fontFamily | specifies the font to be used in the rendered diagrams| string | Required | Any Possible CSS FontFamily |
    *
    * **Notes:**
    * Default value: '"trebuchet ms", verdana, arial, sans-serif;'.
@@ -12109,7 +12109,7 @@ var config = {
   /**
    * | Parameter | Description | Type | Required | Values |
    * | --- | --- | --- | --- | --- |
-   * | startOnLoad | Dictates whether mermaind starts on Page load | boolean | Required | true, false |
+   * | startOnLoad | Dictates whether mermaid starts on Page load | boolean | Required | true, false |
    *
    * **Notes:** Default value: true
    */
@@ -12217,7 +12217,7 @@ var config = {
      *
      * **Notes:**
      *
-     * Default Vaue: 'basis'
+     * Default Value: 'basis'
      */
     curve: 'basis',
     // Only used in new experimental rendering
@@ -12449,7 +12449,7 @@ var config = {
     /**
      * | Parameter | Description | Type | Required | Values |
      * | --- | --- | --- | --- | --- |
-     * | actorFontFamily |This sets the font family of the actor's description | string | Required | Any Posiable CSS FontFamily |
+     * | actorFontFamily |This sets the font family of the actor's description | string | Required | Any Possible CSS FontFamily |
      *
      * **Notes:**
      * Default value: "'Open-Sans", "sans-serif"'
@@ -12477,7 +12477,7 @@ var config = {
     /**
      * | Parameter | Description | Type | Required | Values |
      * | --- | --- | --- | --- | --- |
-     * | noteFontFamily| This sets the font family of actor-attached notes. | string | Required | Any Posiable CSS FontFamily |
+     * | noteFontFamily| This sets the font family of actor-attached notes. | string | Required | Any Possible CSS FontFamily |
      *
      * **Notes:**
      * Default value: ''"trebuchet ms", verdana, arial, sans-serif'
@@ -12515,7 +12515,7 @@ var config = {
     /**
      * | Parameter | Description | Type | Required | Values |
      * | --- | --- | --- | --- | --- |
-     * | messageFontFamily | This sets the font family of actor messages | string | Required | Any Posiable CSS FontFamily |
+     * | messageFontFamily | This sets the font family of actor messages | string | Required | Any Possible CSS FontFamily |
      *
      * **Notes:**
      * Default value: '"trebuchet ms", verdana, arial, sans-serif'
@@ -12673,7 +12673,7 @@ var config = {
     /**
      * | Parameter | Description | Type | Required | Values|
      * | --- | --- | --- | --- | --- |
-     * | sectionFontSize | Font size for secions| Integer | Required | Any Positive Value |
+     * | sectionFontSize | Font size for sections| Integer | Required | Any Positive Value |
      *
      * **Notes:**
      * Default value: 11
@@ -13023,7 +13023,7 @@ var config = {
     /**
      * | Parameter | Description | Type | Required | Values |
      * | --- | --- | --- | --- | --- |
-     * | minEntityWidth | The mimimum width of an entity box | Integer | Required | Any Positive Value  |
+     * | minEntityWidth | The minimum width of an entity box | Integer | Required | Any Positive Value  |
      *
      * **Notes:**
      * Expressed in pixels.
@@ -18124,14 +18124,10 @@ var parseData = function parseData(prevTaskId, dataStr) {
     ds = dataStr;
   }
 
-  var data = ds.split(',').map(function (t) {
-    return t.trim();
-  });
+  var data = ds.split(',');
   var task = {}; // Get tags like active, done, crit and milestone
 
   getTaskTags(data, task, tags);
-  getTaskResources(data, task);
-  getTaskPercent(data, task);
 
   for (var i = 0; i < data.length; i++) {
     data[i] = data[i].trim();
@@ -18203,8 +18199,6 @@ var addTask = function addTask(descr, data) {
   rawTask.done = taskInfo.done;
   rawTask.crit = taskInfo.crit;
   rawTask.milestone = taskInfo.milestone;
-  rawTask.percent = taskInfo.percent;
-  rawTask.resources = taskInfo.resources;
   rawTask.order = lastOrder;
   lastOrder++;
   var pos = rawTasks.push(rawTask);
@@ -18470,36 +18464,6 @@ function getTaskTags(data, task, tags) {
         matchFound = true;
       }
     });
-  }
-}
-
-function getTaskResources(data, task) {
-  var resources = [];
-
-  for (var i = data.length - 1; i >= 0; i--) {
-    if (data[i].startsWith('@')) {
-      resources.unshift(data[i].substr(1));
-      data.splice(i, 1);
-    }
-  }
-
-  if (resources.length > 0) {
-    task.resources = resources;
-  }
-}
-
-function getTaskPercent(data, task) {
-  task.percent = 0;
-
-  for (var i = data.length - 1; i >= 0; i--) {
-    if (data[i].endsWith('%')) {
-      var number = data[i].substr(0, data[i].length - 1);
-      data.splice(i, 1);
-
-      if (!isNaN(number) && !task.percent) {
-        task.percent = Number(number);
-      }
-    }
   }
 }
 
@@ -30031,7 +29995,7 @@ module.exports = require("stylis");
 /***/ ((module) => {
 
 "use strict";
-module.exports = JSON.parse('{"name":"mermaid","version":"8.13.2","description":"Markdownish syntax for generating flowcharts, sequence diagrams, class diagrams, gantt charts and git graphs.","main":"dist/mermaid.core.js","module":"dist/mermaid.esm.min.mjs","exports":{".":{"require":"./dist/mermaid.core.js","import":"./dist/mermaid.esm.min.mjs"},"./*":"./*"},"keywords":["diagram","markdown","flowchart","sequence diagram","gantt","class diagram","git graph"],"scripts":{"build:development":"webpack --progress --color","build:production":"yarn build:development --mode production --config webpack.config.prod.babel.js","build":"concurrently \\"yarn build:development\\" \\"yarn build:production\\"","postbuild":"documentation build src/mermaidAPI.js src/config.js src/defaultConfig.js --shallow -f md --markdown-toc false > docs/Setup.md","build:watch":"yarn build:development --watch","release":"yarn build","lint":"eslint src","e2e:depr":"yarn lint && jest e2e --config e2e/jest.config.js","cypress":"percy exec -- cypress run","e2e":"start-server-and-test dev http://localhost:9000/ cypress","e2e-upd":"yarn lint && jest e2e -u --config e2e/jest.config.js","dev":"webpack serve --config webpack.config.e2e.js","test":"yarn lint && jest src/.*","test:watch":"jest --watch src","prepublishOnly":"yarn build && yarn test","prepare":"yarn build"},"repository":{"type":"git","url":"https://github.com/knsv/mermaid"},"author":"Knut Sveidqvist","license":"MIT","standard":{"ignore":["**/parser/*.js","dist/**/*.js","cypress/**/*.js"],"globals":["page"]},"dependencies":{"@braintree/sanitize-url":"^3.1.0","d3":"^7.0.0","dagre":"^0.8.5","dagre-d3":"^0.6.4","dompurify":"2.3.3","graphlib":"^2.1.8","khroma":"^1.4.1","moment-mini":"^2.24.0","stylis":"^4.0.10"},"devDependencies":{"@babel/core":"^7.14.6","@babel/eslint-parser":"^7.14.7","@babel/preset-env":"^7.14.7","@babel/register":"^7.14.5","@percy/cli":"^1.0.0-beta.58","@percy/cypress":"^3.1.0","@percy/migrate":"^0.11.0","babel-jest":"^27.0.6","babel-loader":"^8.2.2","concurrently":"^6.2.2","coveralls":"^3.0.2","css-to-string-loader":"^0.1.3","cypress":"8.6.0","documentation":"13.2.0","eslint":"^8.0.0","eslint-config-prettier":"^8.3.0","eslint-plugin-prettier":"^4.0.0","husky":"^7.0.1","identity-obj-proxy":"^3.0.0","jest":"^27.0.6","jison":"^0.4.18","js-base64":"3.7.2","moment":"^2.23.0","path-browserify":"^1.0.1","prettier":"^2.3.2","start-server-and-test":"^1.12.6","terser-webpack-plugin":"^5.2.4","webpack":"^5.53.0","webpack-cli":"^4.7.2","webpack-dev-server":"^4.3.0","webpack-node-externals":"^3.0.0"},"files":["dist"],"sideEffects":["**/*.css","**/*.scss"],"husky":{"hooks":{"pre-push":"yarn test"}}}');
+module.exports = JSON.parse('{"name":"mermaid","version":"8.13.2","description":"Markdownish syntax for generating flowcharts, sequence diagrams, class diagrams, gantt charts and git graphs.","main":"dist/mermaid.core.js","module":"dist/mermaid.esm.min.mjs","exports":{".":{"require":"./dist/mermaid.core.js","import":"./dist/mermaid.esm.min.mjs"},"./*":"./*"},"keywords":["diagram","markdown","flowchart","sequence diagram","gantt","class diagram","git graph"],"scripts":{"build:development":"webpack --progress --color","build:production":"yarn build:development --mode production --config webpack.config.prod.babel.js","build":"concurrently \\"yarn build:development\\" \\"yarn build:production\\"","postbuild":"documentation build src/mermaidAPI.js src/config.js src/defaultConfig.js --shallow -f md --markdown-toc false > docs/Setup.md","build:watch":"yarn build:development --watch","release":"yarn build","lint":"eslint src","e2e:depr":"yarn lint && jest e2e --config e2e/jest.config.js","cypress":"percy exec -- cypress run","e2e":"start-server-and-test dev http://localhost:9000/ cypress","e2e-upd":"yarn lint && jest e2e -u --config e2e/jest.config.js","dev":"webpack serve --config webpack.config.e2e.js","test":"yarn lint && jest src/.*","test:watch":"jest --watch src","prepublishOnly":"yarn build && yarn test","prepare":"yarn build"},"repository":{"type":"git","url":"https://github.com/knsv/mermaid"},"author":"Knut Sveidqvist","license":"MIT","standard":{"ignore":["**/parser/*.js","dist/**/*.js","cypress/**/*.js"],"globals":["page"]},"dependencies":{"@braintree/sanitize-url":"^3.1.0","d3":"^7.0.0","dagre":"^0.8.5","dagre-d3":"^0.6.4","dompurify":"2.3.3","graphlib":"^2.1.8","khroma":"^1.4.1","moment-mini":"^2.24.0","stylis":"^4.0.10"},"devDependencies":{"@babel/core":"^7.14.6","@babel/eslint-parser":"^7.14.7","@babel/preset-env":"^7.14.7","@babel/register":"^7.14.5","@percy/cli":"^1.0.0-beta.58","@percy/cypress":"^3.1.0","@percy/migrate":"^0.11.0","babel-jest":"^27.0.6","babel-loader":"^8.2.2","concurrently":"^6.2.2","coveralls":"^3.0.2","css-to-string-loader":"^0.1.3","cypress":"8.7.0","documentation":"13.2.0","eslint":"^8.0.0","eslint-config-prettier":"^8.3.0","eslint-plugin-prettier":"^4.0.0","husky":"^7.0.1","identity-obj-proxy":"^3.0.0","jest":"^27.0.6","jison":"^0.4.18","js-base64":"3.7.2","moment":"^2.23.0","path-browserify":"^1.0.1","prettier":"^2.3.2","start-server-and-test":"^1.12.6","terser-webpack-plugin":"^5.2.4","webpack":"^5.53.0","webpack-cli":"^4.7.2","webpack-dev-server":"^4.3.0","webpack-node-externals":"^3.0.0"},"files":["dist"],"sideEffects":["**/*.css","**/*.scss"],"husky":{"hooks":{"pre-push":"yarn test"}}}');
 
 /***/ })
 
