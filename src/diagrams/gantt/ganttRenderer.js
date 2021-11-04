@@ -340,7 +340,9 @@ export const draw = function (text, id) {
           d.percent ? '(' + d.percent + '%)' : ''
         }</div>`;
         if (d.resources) {
-          content += `<div style="padding-top: 5px;">${d.resources.map((t) => '@' + t).join(', ')}</div>`;
+          content += `<div style="padding-top: 5px;">${d.resources
+            .map((t) => '@' + t)
+            .join(', ')}</div>`;
         }
         tooltipElem.html(content).transition().duration(200).style('opacity', '.9');
       })

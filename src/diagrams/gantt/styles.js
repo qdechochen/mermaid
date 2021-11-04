@@ -92,6 +92,9 @@ const getStyles = (options) =>
     pointer-events: none;
     stroke-width: 0;
   }
+  .task:not(.percent):hover {
+    opacity: 0.5;
+  }
 
   .taskText {
     text-anchor: middle;
