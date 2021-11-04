@@ -91,6 +91,27 @@ export const draw = function (text, id) {
     return result;
   }
 
+  const themeVars = getConfig().themeVariables;
+  console.log(themeVars);
+  let tooltipElem = select('.mermaidGanttTooltip');
+  if ((tooltipElem._groups || tooltipElem)[0][0] === null) {
+    tooltipElem = select('body')
+      .append('div')
+      .attr('class', 'mermaidGanttTooltip')
+      .style('opacity', 0)
+      .style('position', 'absolute')
+      .style('max-width', '200px')
+      .style('font-family', themeVars.fontFamily)
+      .style('font-size', '12px')
+      .style('background', themeVars.tertiaryColor)
+      .style('border', '1px solid ' + themeVars.border2)
+      .style('border-radius', '2px')
+      .style('pointer-events', 'none')
+      .style('z-index', 100)
+      .style('transform', 'translate(-50%, 16px)')
+      .style('padding', '6px 15px');
+  }
+
   // Sort the task array using the above taskCompare() so that
   // tasks are created based on their order of startTime
   taskArray.sort(taskCompare);
@@ -219,9 +240,9 @@ export const draw = function (text, id) {
       });
 
     // Draw the rects representing the tasks
-    const rectangles = svg.append('g').selectAll('rect').data(theArray).enter();
+    const rectangleGroups = svg.append('g').selectAll('g').data(theArray).enter();
 
-    rectangles
+    rectangleGroups
       .append('rect')
       .attr('id', function (d) {
         return d.id;
@@ -315,19 +336,124 @@ export const draw = function (text, id) {
         return res + taskClass;
       })
       .on('mouseover', function (e, d) {
+        let content = `<div style="font-weight: bold">${d.task} ${
+          d.percent ? '(' + d.percent + '%)' : ''
+        }</div>`;
+        if (d.resources) {
+          content += `<div style="padding-top: 5px;">${d.resources.map((t) => '@' + t).join(', ')}</div>`;
+        }
+        tooltipElem.html(content).transition().duration(200).style('opacity', '.9');
+      })
+      .on('mousemove', function (e, d) {
         setRangeIndicatorPosition(
           d.startTime,
           d.renderEndTime || d.endTime,
           d.totalDays,
           d.order * theGap + theTopPad
         );
+        tooltipElem.style('left', e.clientX + 'px').style('top', e.clientY + 'px');
       })
       .on('mouseout', function () {
+        tooltipElem.transition().duration(200).style('opacity', 0);
         setRangeIndicatorPosition();
       });
 
+    rectangleGroups
+      .append('rect')
+      .attr('id', function (d) {
+        return d.id;
+      })
+      .attr('x', function (d) {
+        if (d.milestone) {
+          return (
+            timeScale(d.startTime) +
+            theSidePad +
+            0.5 * (timeScale(d.endTime) - timeScale(d.startTime)) -
+            0.5 * theBarHeight
+          );
+        }
+        return timeScale(d.startTime) + theSidePad;
+      })
+      .attr('y', function (d, i) {
+        // Ignore the incoming i value and use our order instead
+        i = d.order;
+        return i * theGap + theTopPad;
+      })
+      .attr('width', function (d) {
+        if (d.milestone) {
+          return theBarHeight;
+        }
+        return (
+          (timeScale(d.renderEndTime || d.endTime) - timeScale(d.startTime)) * (d.percent / 100)
+        );
+      })
+      .attr('height', theBarHeight)
+      .attr('transform-origin', function (d, i) {
+        // Ignore the incoming i value and use our order instead
+        i = d.order;
+
+        return (
+          (
+            timeScale(d.startTime) +
+            theSidePad +
+            0.5 * (timeScale(d.endTime) - timeScale(d.startTime))
+          ).toString() +
+          'px ' +
+          (i * theGap + theTopPad + 0.5 * theBarHeight).toString() +
+          'px'
+        );
+      })
+      .attr('class', function (d) {
+        const res = 'task percent';
+
+        let classStr = '';
+        if (d.classes.length > 0) {
+          classStr = d.classes.join(' ');
+        }
+
+        let secNum = 0;
+        for (let i = 0; i < categories.length; i++) {
+          if (d.type === categories[i]) {
+            secNum = i % conf.numberSectionStyles;
+          }
+        }
+
+        let taskClass = '';
+        if (d.active) {
+          if (d.crit) {
+            taskClass += ' activeCrit';
+          } else {
+            taskClass = ' active';
+          }
+        } else if (d.done) {
+          if (d.crit) {
+            taskClass = ' doneCrit';
+          } else {
+            taskClass = ' done';
+          }
+        } else {
+          if (d.crit) {
+            taskClass += ' crit';
+          }
+        }
+
+        if (taskClass.length === 0) {
+          taskClass = ' task';
+        }
+
+        if (d.milestone) {
+          taskClass = ' milestone ' + taskClass;
+        }
+
+        taskClass += secNum;
+
+        taskClass += ' ' + classStr;
+
+        return res + taskClass;
+      });
+
     // Append task labels
-    rectangles
+    rectangleGroups
       .append('text')
       .attr('id', function (d) {
         return d.id + '-text';
